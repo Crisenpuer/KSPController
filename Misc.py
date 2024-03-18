@@ -33,20 +33,20 @@ def get_dotenv():
 
 def read_from_pastebin(url_code:str):
     if url_code.startswith("https://pastebin.com/"):
-        code = pastebinfromurl(url_code)
+        code, pasteurl = pastebinfromurl(url_code)
     else:
-        code = pastebinfromurl(f"https://pastebin.com/{url_code}")
+        code, pasteurl = pastebinfromurl(f"https://pastebin.com/{url_code}")
 
-    return code
+    return code, pasteurl
 
 
 def pastebinfromurl(url:str):
     response = requests.get(url)
     if response.status_code == 200:
         code = response.text
-        return code
+        return code, url
     else:
-        return None
+        return None, url
     
 
 def status():

@@ -1,32 +1,26 @@
-import asyncio
+import asyncio, telnetlib3
 from datetime import datetime
-from Misc import OLDlog
+from Misc import OLDlog, log
+
+ping_task = None
 
 # Function to send command to KOS Telnet server
-async def send_command(reader, writer, command):
-    now = datetime.now().strftime("%H:%M:%S")
-    try:
-        if reader and writer:
-            OLDlog('KSPTelnet', "Sending command...")
-            writer.write(command.encode() + b"\r\n")
-            await writer.drain()
-            OLDlog('KSPTelnet', "Command sent:", command)
-
-            # Read the response (if needed)
-            response = await reader.readuntil(b">")  # Adjust termination string as needed
-            OLDlog('KSPTelnet', "Response:", response.decode())
-        else:
-            OLDlog('KSPTelnet', "Not connected to KOS Telnet server")
-    except Exception as e:
-        print("[KSPTelnet] Error:", e)
+async def send_command(reader: None, writer, command:str):
+    log(command)
+    # Send command to kOS telnet server
+    writer.write(f"{command}\n\r")
+    await writer.drain()
 
 # Function to connect to KOS Telnet server
-async def connect_to_kos(ip, port):
+async def connect_to_kos(ip:str, port:int):
     now = datetime.now().strftime("%H:%M:%S")
     try:
         OLDlog('KSPTelnet', "Connecting to KOS Telnet server...")
-        reader, writer = await asyncio.open_connection(ip, port)
+        reader, writer = await telnetlib3.open_connection(ip, port)
         OLDlog('KSPTelnet', "Connection established", 0)
+        resp = await reader.readuntil(b">")
+        OLDlog('KSPTelnet', f"Response: {resp.decode(encoding='utf-8', errors='ignore')}")
+
         return reader, writer
     except ConnectionRefusedError:
         OLDlog('KSPTelnet', "Connection error: Connection refused")
@@ -46,38 +40,28 @@ async def disconnect_from_kos(reader, writer):
     except Exception as e:
         OLDlog('KSPTelnet', "Error:", e)
 
-async def send_ping(writer):
+
+
+async def send_ping(writer: telnetlib3.TelnetWriter):
     try:
         while True:
             OLDlog('KSPTelnet', "Sending PING message...", 1)
-            writer.write(b"")
+            writer.write(b"//ping")
             await writer.drain()
-            await asyncio.sleep(30)  # Wait for 30 seconds before sending the next PING
+            await asyncio.sleep(15)  # Wait for 15 seconds before sending the next PING
     except Exception as e:
         OLDlog('KSPTelnet', "Error sending PING message:", e)
 
 
-
-# paste this to main botv2 script please!
-async def start_ping(ctx):
-    global ping_task
-    global writer
-    if ping_task is None:
-        ping_task = asyncio.create_task(send_ping(writer))
-        await ctx.send("Started sending PING messages")
-    else:
-        await ctx.send("Already sending PING messages")
-
 # Function to stop sending "PING" messages
-async def stop_ping(ctx):
+async def stop_ping():
     global ping_task
     if ping_task:
         ping_task.cancel()
         ping_task = None
-        await ctx.send("Stopped sending PING messages")
+        log("Stopped ping","KOSTelnet",1)
     else:
-        await ctx.send("Not sending PING messages")
-
+        log("Not pinging already","KOSTelnet",1)
 
 # Setting telnet terminal to XTERM
 # async def set_xterm_emulation(tn):
